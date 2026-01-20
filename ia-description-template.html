@@ -1,0 +1,63 @@
+<h1>/mlp/ Archive (NDJSON)</h1>
+
+<p>
+  This item contains a comprehensive text and metadata archive of the 4chan
+  <strong>/mlp/</strong> board, covering the period from the board's creation
+  (February 2012) through {current.month} {current.year} (as of the last update).
+</p>
+
+<h2>Overview</h2>
+<p>
+  The data is stored in <strong>NDJSON (Newline Delimited JSON)</strong> format,
+  compressed with XZ. Each line represents a single post object as received
+  from the desuarchive API <sup><a href="#notes">[1]</a></sup>.
+</p>
+
+<h3>Data Sources</h3>
+<p>
+  Posts were aggregated from multiple archival sources to ensure maximum completeness.
+</p>
+<ul>
+  <li><strong>desuarchive.org:</strong> {desuarchive.count} posts</li>
+  <li><strong>archive.heinessen.com:</strong> {heinessen.count} posts</li>
+  <li><strong>arch.b4k.dev:</strong> {b4k.count} posts</li>
+  <li><strong>archived.moe:</strong> {archivedmoe.count} posts</li>
+  <li><strong>4archive.org:</strong> {4archive.count} posts</li>
+</ul>
+<p>
+  <strong>Total Missing Posts:</strong> {missing.count} (as of the latest update).
+</p>
+
+<h3 id="notes">Notes [1]</h3>
+<ul>
+  <li>
+    Data from <em>archive.heinessen.com</em> was converted to roughly look like
+    the desuarchive API response.
+  </li>
+  <li>
+    Same goes for data from <em>4archive.org</em>.
+  </li>
+  <li>
+    <em>arch.b4k.dev</em> and <em>archived.moe</em> run the same software as
+    desuarchive (FoolFuuka) so their responses were already in "desuarchive format".
+  </li>
+  <li>
+    Posts that could not be retrieved from any known source are represented by
+    a placeholder JSON object to maintain continuity (schema described below).
+  </li>
+</ul>
+
+<h4>Missing Post Schema</h4>
+<pre><code>{
+  "num": "123456", <span style="color: green;">// Missing post number</span>
+  "exception": "Post: not found",
+  "timestamp": 1646187447 <span style="color: green;">// Timestamp of when the "post not found" response was received from the API.</span>
+}</code></pre>
+
+<p>
+  This item will be updated with new yearly releases by an auto scraping script.
+  Source code and more info at <a href="https://github.com/firlin123/desu-mlp" target="_blank"
+    title="GitHub Repository for desu-mlp">https://github.com/firlin123/desu-mlp</a>.
+</p>
+
+<p>Last update: {current.date}</p>

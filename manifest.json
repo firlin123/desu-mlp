@@ -1,0 +1,59 @@
+{
+  "lastDownloaded": 42033236,
+  "daily": ["20250317043909_daily_41951100_42033236"],
+  "monthly": [],
+  "yearly": [
+    {
+      "name": "20130217053950_yearly_1_8355614",
+      "url": "https://archive.org/download/desu-mlp/20130217053950_yearly_1_8355614.ndjson.xz"
+    },
+    {
+      "name": "20140217053939_yearly_8355615_16342348",
+      "url": "https://archive.org/download/desu-mlp/20140217053939_yearly_8355615_16342348.ndjson.xz"
+    },
+    {
+      "name": "20150217053941_yearly_16342349_21851820",
+      "url": "https://archive.org/download/desu-mlp/20150217053941_yearly_16342349_21851820.ndjson.xz"
+    },
+    {
+      "name": "20160217053937_yearly_21851821_26488718",
+      "url": "https://archive.org/download/desu-mlp/20160217053937_yearly_21851821_26488718.ndjson.xz"
+    },
+    {
+      "name": "20170217053911_yearly_26488719_29496425",
+      "url": "https://archive.org/download/desu-mlp/20170217053911_yearly_26488719_29496425.ndjson.xz"
+    },
+    {
+      "name": "20180217053924_yearly_29496426_31900373",
+      "url": "https://archive.org/download/desu-mlp/20180217053924_yearly_29496426_31900373.ndjson.xz"
+    },
+    {
+      "name": "20190217053919_yearly_31900374_33519542",
+      "url": "https://archive.org/download/desu-mlp/20190217053919_yearly_31900374_33519542.ndjson.xz"
+    },
+    {
+      "name": "20200217053826_yearly_33519543_34991379",
+      "url": "https://archive.org/download/desu-mlp/20200217053826_yearly_33519543_34991379.ndjson.xz"
+    },
+    {
+      "name": "20210217053928_yearly_34991380_36567104",
+      "url": "https://archive.org/download/desu-mlp/20210217053928_yearly_34991380_36567104.ndjson.xz"
+    },
+    {
+      "name": "20220217053930_yearly_36567105_38227064",
+      "url": "https://archive.org/download/desu-mlp/20220217053930_yearly_36567105_38227064.ndjson.xz"
+    },
+    {
+      "name": "20230217053731_yearly_38227065_39635235",
+      "url": "https://archive.org/download/desu-mlp/20230217053731_yearly_38227065_39635235.ndjson.xz"
+    },
+    {
+      "name": "20240217053757_yearly_39635236_40833446",
+      "url": "https://archive.org/download/desu-mlp/20240217053757_yearly_39635236_40833446.ndjson.xz"
+    },
+    {
+      "name": "20250217053930_yearly_40833447_41951099",
+      "url": "https://archive.org/download/desu-mlp/20250217053930_yearly_40833447_41951099.ndjson.xz"
+    }
+  ]
+}

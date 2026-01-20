@@ -1,0 +1,7 @@
+.vscode/
+node_modules/
+*.ndjson
+*.ndjson.gz
+*.ndjson.xz
+experiments/
+ia-description.html
