@@ -1,0 +1,35 @@
+name: Automated Daily Archive
+
+on:
+  workflow_dispatch: 
+
+permissions:
+  contents: write
+  packages: read
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install required packages
+        run: ./installCommands.sh basename bash curl date echo env gh git google-chrome-stable grep gzip head ia jq kill mv node npm pipx shuf sleep tail
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Run downloader script
+        run: node ./src/downloader.js
+
+      - name: Run consolidation script
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IA_EMAIL: ${{ secrets.IA_EMAIL }}
+          IA_PASSWORD: ${{ secrets.IA_PASSWORD }}
+          EXTREME_COMPRESSION: true
+        run: node ./consolidate.js
