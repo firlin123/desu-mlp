@@ -1,6 +1,6 @@
 // @ts-check
 const { execSync } = require('child_process');
-const { readFileSync, writeFileSync, existsSync, renameSync } = require('fs');
+const { readFileSync, writeFileSync, existsSync, renameSync, cpSync } = require('fs');
 
 /** @type {typeof import('child_process').execSync} */
 const execWEnv = /** @type {any} */ (
@@ -22,6 +22,9 @@ const MANIFEST = process.env.MANIFEST || 'manifest.json';
 const IA_ITEM_ID = process.env.IA_ITEM_ID || 'desu-mlp';
 const IA_EMAIL = process.env.IA_EMAIL || '';
 const IA_PASSWORD = process.env.IA_PASSWORD || '';
+
+// Base subjects for Internet Archive uploads
+const BASE_SUBJECTS = process.env.BASE_SUBJECTS || '4chan;mlp;my little pony;brony;imageboard;dataset;json;ndjson;desuarchive;desuarchive.org;archive.heinessen.com;arch.b4k.dev;archived.moe';
 
 // 2012-02-17 05:39:50 UTC is the date of the first /mlp/ post
 const BASE_YEAR = parseInt(process.env.BASE_YEAR || '2012', 10);
@@ -484,9 +487,11 @@ function consolidateYearly() {
         execWEnv(`cat ${monthlyFile} >> ${yearlyFile}`);
     }
 
+    const statsDeltaPath = `${yearly}_stats.json`;
+
     console.log('Running reCheck on yearly archive...');
     try {
-        execWEnv(`node src/reCheck.js ${yearlyFile}`, { stdio: 'inherit' });
+        execWEnv(`node src/reCheck.js ${yearlyFile}`, { stdio: 'inherit', env: { STATS_PATH: statsDeltaPath } });
     } catch {
         console.error(`Yearly archive '${yearlyFile}' reCheck failed.`);
         return false;
@@ -501,11 +506,96 @@ function consolidateYearly() {
         return false;
     }
 
+    /**
+     * @typedef {Object} ManifestStats
+     * @property {number} desuarchiveCount
+     * @property {number} heinessenCount
+     * @property {number} b4kCount
+     * @property {number} archivedMoeCount
+     * @property {number} fourArchiveCount
+     * @property {number} missingCount
+     */
+
+    /** @type {ManifestStats|null} */
+    let newStatsDelta = null;
+    if (existsSync(statsDeltaPath)) {
+        try {
+            newStatsDelta = JSON.parse(readFileSync(statsDeltaPath, 'utf-8'));
+            console.log('Yearly archive statistics:', newStatsDelta);
+        }
+        catch { }
+    }
+
+    /** @type {ManifestStats|null} */
+    let currStats = manifest.lastYearlyStats;
+    if (!currStats ||
+        typeof currStats.desuarchiveCount !== 'number' || typeof currStats.heinessenCount !== 'number' ||
+        typeof currStats.b4kCount !== 'number' || typeof currStats.archivedMoeCount !== 'number' ||
+        typeof currStats.fourArchiveCount !== 'number' || typeof currStats.missingCount !== 'number') {
+        console.warn('WARN: Current yearly stats in manifest are invalid. Resetting to null.');
+        currStats = null;
+    }
+
+    if (!newStatsDelta ||
+        typeof newStatsDelta.desuarchiveCount !== 'number' || typeof newStatsDelta.heinessenCount !== 'number' ||
+        typeof newStatsDelta.b4kCount !== 'number' || typeof newStatsDelta.archivedMoeCount !== 'number' ||
+        typeof newStatsDelta.fourArchiveCount !== 'number' || typeof newStatsDelta.missingCount !== 'number') {
+        console.warn('WARN: New yearly stats delta from reCheck are invalid. Skipping stats update.');
+        newStatsDelta = null;
+    }
+
+    /** @type {ManifestStats|null} */
+    let newStats = null;
+    if (currStats && newStatsDelta) {
+        newStats = {
+            desuarchiveCount: currStats.desuarchiveCount + newStatsDelta.desuarchiveCount,
+            heinessenCount: currStats.heinessenCount + newStatsDelta.heinessenCount,
+            b4kCount: currStats.b4kCount + newStatsDelta.b4kCount,
+            archivedMoeCount: currStats.archivedMoeCount + newStatsDelta.archivedMoeCount,
+            fourArchiveCount: currStats.fourArchiveCount + newStatsDelta.fourArchiveCount,
+            missingCount: currStats.missingCount + newStatsDelta.missingCount,
+        };
+    }
+
+    if (existsSync('ia-description-template.html') && newStats) {
+        try {
+            const descriptionTemplate = readFileSync('ia-description-template.html', 'utf-8');
+            const description = descriptionTemplate.replace(/{(\w+)}/g, (match, p1) => {
+                switch (p1) {
+                    case 'desuarchiveCount': return String(newStats.desuarchiveCount);
+                    case 'heinessenCount': return String(newStats.heinessenCount);
+                    case 'b4kCount': return String(newStats.b4kCount);
+                    case 'archivedMoeCount': return String(newStats.archivedMoeCount);
+                    case 'fourArchiveCount': return String(newStats.fourArchiveCount);
+                    case 'missingCount': return String(newStats.missingCount);
+                    case 'currentMonth': return [
+                        'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'
+                    ][endDate.getUTCMonth()];
+                    case 'currentYear': return String(endDate.getUTCFullYear());
+                    case 'currentDate': {
+                        return `${endDate.getUTCFullYear()}.${pad(endDate.getUTCMonth() + 1)}.${pad(endDate.getUTCDate())} ` +
+                            `${pad(endDate.getUTCHours())}:${pad(endDate.getUTCMinutes())}:${pad(endDate.getUTCSeconds())} UTC`;
+                    }
+                    default: {
+                        console.warn(`WARN: Unknown placeholder '{${p1}}' in IA description template.`);
+                        return match;
+                    }
+                }
+            });
+            writeFileSync('ia-description.html', description);
+        } catch {
+            console.warn('WARN: Failed to generate IA description from template.');
+        }
+    }
+
     const iaURL = `https://archive.org/download/${IA_ITEM_ID}/${yearlyXZ}`;
     // Replace monthly -> yearly in manifest
     manifest.monthly = [];
     manifest.yearly = manifest.yearly || [];
     manifest.yearly.push({ name: yearly, url: iaURL });
+    if (newStats) {
+        manifest.lastYearlyStats = newStats;
+    }
     writeFileSync(MANIFEST + '.tmp', JSON.stringify(manifest, null, 2));
     renameSync(MANIFEST + '.tmp', MANIFEST);
 
@@ -515,10 +605,30 @@ function consolidateYearly() {
         if (!iaListOutput.split('\n').includes(yearlyXZ)) {
             console.log('Uploading yearly archive to Internet Archive...');
             try {
-                execWEnv(`ia upload ${IA_ITEM_ID} ${yearlyXZ}`);
+                execWEnv(`ia upload ${IA_ITEM_ID} ${yearlyXZ}`, { stdio: 'inherit' });
             } catch {
                 console.error('Failed to upload yearly archive to Internet Archive.');
                 return false;
+            }
+
+            /** @type {string[]} */
+            const subjects = BASE_SUBJECTS ? BASE_SUBJECTS.split(';') : [];
+            for (let year = BASE_YEAR; year <= endDate.getUTCFullYear(); year++) {
+                subjects.push(String(year));
+            }
+            let cmd = `ia metadata ${IA_ITEM_ID} ` +
+                `--modify="date:${endDate.getUTCFullYear()}-${pad(endDate.getUTCMonth() + 1)}-${pad(endDate.getUTCDate())}" ` +
+                `--modify="subject:${subjects.join(';')}"`;
+            if (existsSync('ia-description.html')) {
+                cmd += ' --modify="description:$(cat ia-description.html)"';
+            } else {
+                console.warn('WARN: IA description file not found. Skipping description update...');
+            }
+            console.log('Updating Internet Archive item metadata...');
+            try {
+                execWEnv(cmd, { stdio: 'inherit' });
+            } catch {
+                console.warn('WARN: Failed to update Internet Archive item metadata. Continuing...');
             }
         }
     } catch {

@@ -78,5 +78,13 @@
       "name": "20250217053930_yearly_40833447_41951099",
       "url": "https://archive.org/download/desu-mlp/20250217053930_yearly_40833447_41951099.ndjson.xz"
     }
-  ]
+  ],
+  "lastYearlyStats": {
+    "desuarchiveCount": 41549520,
+    "heinessenCount": 53860,
+    "b4kCount": 48695,
+    "archivedMoeCount": 16318,
+    "fourArchiveCount": 2,
+    "missingCount": 282704
+  }
 }

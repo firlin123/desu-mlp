@@ -8,17 +8,41 @@ const { closeCDPFetchers } = require("./cdpFetch");
 /** @typedef {import('./ffUtils').MinimalFFPost} MinimalFFPost */
 
 /**
+ * @typedef {Object} ManifestStats
+ * @property {number} desuarchiveCount
+ * @property {number} heinessenCount
+ * @property {number} b4kCount
+ * @property {number} archivedMoeCount
+ * @property {number} fourArchiveCount
+ * @property {number} missingCount
+ */
+
+/**
  * @typedef {Object} Manifest
  * @property {number} lastDownloaded The last downloaded post ID.
  * @property {Array<string>} daily The list of daily chunk names.
  * @property {Array<string>} monthly The list of monthly chunk names.
  * @property {Array<{name: string, url: string}>} yearly The list of yearly chunk names and URLs.
+ * @property {ManifestStats} lastYearlyStats The stats up to the last yearly chunk.
  */
 
 // Last downloaded post file
 const MANIFEST_FILE = join(__dirname, '..', 'manifest.json');
 /** @type {Manifest} */
-const DEFAULT_MANIFEST = { lastDownloaded: 0, daily: [], monthly: [], yearly: [] };
+const DEFAULT_MANIFEST = {
+    lastDownloaded: 0,
+    daily: [],
+    monthly: [],
+    yearly: [],
+    lastYearlyStats: {
+        desuarchiveCount: 0,
+        heinessenCount: 0,
+        b4kCount: 0,
+        archivedMoeCount: 0,
+        fourArchiveCount: 0,
+        missingCount: 0
+    }
+};
 
 /**
  * Get the manifest data.
@@ -35,22 +59,56 @@ async function getManifest() {
     try {
         data = await readFile(MANIFEST_FILE, 'utf-8').then(d => JSON.parse(d));
     } catch (err) {
-        console.error(`Error reading ${MANIFEST_FILE}. Using default manifest. Error:`, err);
+        console.warn(`${MANIFEST_FILE} is invalid JSON. Using default manifest.`);
+        return structuredClone(DEFAULT_MANIFEST);
     }
     if (data == null || typeof data !== 'object' || Array.isArray(data)) {
-        data = structuredClone(DEFAULT_MANIFEST);
+        console.warn(`${MANIFEST_FILE} is invalid. Using default manifest.`);
+        return structuredClone(DEFAULT_MANIFEST);
     }
     if (typeof data.lastDownloaded !== 'number') {
+        console.warn(`manifest.lastDownloaded is invalid. Resetting to 0.`);
         data.lastDownloaded = 0;
     }
     if (!Array.isArray(data.daily)) {
+        console.warn(`manifest.daily is invalid. Resetting to empty array.`);
         data.daily = [];
     }
     if (!Array.isArray(data.monthly)) {
+        console.warn(`manifest.monthly is invalid. Resetting to empty array.`);
         data.monthly = [];
     }
     if (!Array.isArray(data.yearly)) {
+        console.warn(`manifest.yearly is invalid. Resetting to empty array.`);
         data.yearly = [];
+    }
+    if (data.lastYearlyStats == null || typeof data.lastYearlyStats !== 'object' || Array.isArray(data.lastYearlyStats)) {
+        console.warn(`manifest.lastYearlyStats is invalid. Resetting to default stats.`);
+        data.lastYearlyStats = structuredClone(DEFAULT_MANIFEST.lastYearlyStats);
+    }
+    if (typeof data.lastYearlyStats.desuarchiveCount !== 'number') {
+        console.warn(`manifest.lastYearlyStats.desuarchiveCount is invalid. Resetting to 0.`);
+        data.lastYearlyStats.desuarchiveCount = 0;
+    }
+    if (typeof data.lastYearlyStats.heinessenCount !== 'number') {
+        console.warn(`manifest.lastYearlyStats.heinessenCount is invalid. Resetting to 0.`);
+        data.lastYearlyStats.heinessenCount = 0;
+    }
+    if (typeof data.lastYearlyStats.b4kCount !== 'number') {
+        console.warn(`manifest.lastYearlyStats.b4kCount is invalid. Resetting to 0.`);
+        data.lastYearlyStats.b4kCount = 0;
+    }
+    if (typeof data.lastYearlyStats.archivedMoeCount !== 'number') {
+        console.warn(`manifest.lastYearlyStats.archivedMoeCount is invalid. Resetting to 0.`);
+        data.lastYearlyStats.archivedMoeCount = 0;
+    }
+    if (typeof data.lastYearlyStats.fourArchiveCount !== 'number') {
+        console.warn(`manifest.lastYearlyStats.fourArchiveCount is invalid. Resetting to 0.`);
+        data.lastYearlyStats.fourArchiveCount = 0;
+    }
+    if (typeof data.lastYearlyStats.missingCount !== 'number') {
+        console.warn(`manifest.lastYearlyStats.missingCount is invalid. Resetting to 0.`);
+        data.lastYearlyStats.missingCount = 0;
     }
     return data;
 }
