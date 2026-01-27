@@ -1,9 +1,11 @@
 // @ts-check
 const { createReadStream, createWriteStream } = require('fs');
-const { stat, rename } = require('fs/promises');
+const { stat, rename, writeFile } = require('fs/promises');
 const { resolve, basename } = require('path');
 const { getSource, fetchPost, fetchThread, getPriority } = require('./ffUtils');
 const { closeCDPFetchers } = require('./cdpFetch');
+
+const STATS_PATH = process.env.STATS_PATH ? resolve(process.env.STATS_PATH) : null;
 
 /** @typedef {import('./ffUtils').MinimalFFPost} MinimalFFPost */
 /** @typedef {import('./ffUtils').MinimalFFThread} MinimalFFThread */
@@ -232,6 +234,13 @@ function toHumanTime(sec) {
  */
 
 async function main() {
+    const stats = {
+        desuarchiveCount: 0,
+        b4kCount: 0,
+        archivedMoeCount: 0,
+        fourArchiveCount: 0,
+        missingCount: 0
+    };
     const inputPathRaw = process.argv[2];
     if (!inputPathRaw) {
         console.error('Please provide the path to the NDJSON file as the first argument.');
@@ -437,6 +446,67 @@ async function main() {
         return exising;
     }
 
+    /**
+     * Transform a post entry.
+     * 
+     * @param {MinimalFFPost | { num: string, exception: string, timestamp: number }} post The post entry.
+     * @returns {MaybePromise<MinimalFFPost | { num: string, exception: string, timestamp: number }>} The transformed post entry.
+     */
+    function transformPost(post) {
+        entryCount++;
+        /** @type {'desuarchive.org' | 'arch.b4k.dev' | 'archived.moe' | null} */
+        let existingSource = post && !('exception' in post) ? getSource(post) : null;
+        // If already from desuarchive, return as is
+        if (existingSource === 'desuarchive.org') {
+            return post;
+        }
+        lowPriorityCount++;
+        const num = parseInt(post.num, 10);
+        // Check cache
+        const cached = downloaded.get(num) || null;
+        const cachedSource = (cached && !('exception' in cached)) ? getSource(cached) : null;
+        // If cached is from desuarchive, return it
+        if (cached && cachedSource === 'desuarchive.org') {
+            upgradedCount++;
+            return cached;
+        }
+        // If existing post is older than cutoff, skip upgrade
+        if (post.timestamp < upgradeCutoff) {
+            return post;
+        }
+        // Otherwise, check archives
+        return checkArchives(num, post, existingSource, cached, cachedSource);
+    }
+
+    /**
+     * Count statistics for a post.
+     * 
+     * @param {MinimalFFPost | { num: string, exception: string, timestamp: number }} post The post entry.
+     */
+    function countStat(post) {
+        const source = post && !('exception' in post) ? getSource(post) : null;
+        if (!source) {
+            stats.missingCount++;
+            return;
+        }
+        switch (source) {
+            case 'desuarchive.org':
+                stats.desuarchiveCount++;
+                break;
+            case 'arch.b4k.dev':
+                stats.b4kCount++;
+                break;
+            case 'archived.moe':
+                stats.archivedMoeCount++;
+                break;
+            // case '4archive.org':
+            //     stats.fourArchiveCount++;
+            //     break;
+            default:
+                throw new Error(`Unknown source: ${source}`);
+        }
+    }
+
     // Dont upgrade posts older than 2 months
     const upgradeCutoff = Math.round((Date.now() - 5_184_000_000) / 1000);
 
@@ -444,29 +514,15 @@ async function main() {
         inputPath, outputPath,
         /** @type {(entry: MinimalFFPost | { num: string, exception: string, timestamp: number }) => MaybePromise<MinimalFFPost | { num: string, exception: string, timestamp: number }>} */
         (existing) => {
-            entryCount++;
-            /** @type {'desuarchive.org' | 'arch.b4k.dev' | 'archived.moe' | null} */
-            let existingSource = existing && !('exception' in existing) ? getSource(existing) : null;
-            // If already from desuarchive, return as is
-            if (existingSource === 'desuarchive.org') {
-                return existing;
+            const upgradedRaw = transformPost(existing);
+            if (upgradedRaw instanceof Promise) {
+                return upgradedRaw.then((upgraded) => {
+                    countStat(upgraded);
+                    return upgraded;
+                });
             }
-            lowPriorityCount++;
-            const num = parseInt(existing.num, 10);
-            // Check cache
-            const cached = downloaded.get(num) || null;
-            const cachedSource = (cached && !('exception' in cached)) ? getSource(cached) : null;
-            // If cached is from desuarchive, return it
-            if (cached && cachedSource === 'desuarchive.org') {
-                upgradedCount++;
-                return cached;
-            }
-            // If existing post is older than cutoff, skip upgrade
-            if (existing.timestamp < upgradeCutoff) {
-                return existing;
-            }
-            // Otherwise, check archives
-            return checkArchives(num, existing, existingSource, cached, cachedSource);
+            countStat(upgradedRaw);
+            return upgradedRaw;
         },
         {
             highWaterMark: 0x200000, // 2MB
@@ -482,6 +538,10 @@ async function main() {
     printProgress(Date.now(), size, size);
     await rename(outputPath, inputPath);
     console.log("Processing complete.");
+    if (STATS_PATH) {
+        console.log("Writing stats to", STATS_PATH);
+        await writeFile(STATS_PATH, JSON.stringify(stats, null, 2), 'utf-8');
+    }
 }
 
 main().catch((err) => {
