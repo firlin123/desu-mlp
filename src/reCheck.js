@@ -236,6 +236,7 @@ function toHumanTime(sec) {
 async function main() {
     const stats = {
         desuarchiveCount: 0,
+        heinessenCount: 0,
         b4kCount: 0,
         archivedMoeCount: 0,
         fourArchiveCount: 0,
@@ -493,6 +494,9 @@ async function main() {
             case 'desuarchive.org':
                 stats.desuarchiveCount++;
                 break;
+            // case 'archive.heinessen.com':
+            //     stats.heinessenCount++;
+            //     break;
             case 'arch.b4k.dev':
                 stats.b4kCount++;
                 break;
