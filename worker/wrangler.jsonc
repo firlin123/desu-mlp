@@ -6,7 +6,7 @@
     "compatibility_date": "2025-11-16",
     "triggers": {
         "crons": [
-            "40 5 * * *"
+            "36 5 * * *"
         ]
     },
     "observability": {
