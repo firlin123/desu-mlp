@@ -5,9 +5,9 @@ set -euo pipefail
 # Configuration and Setup
 # ==============================
 
-REPO="${REPO:-firlin123/desuarchive-mlp-backup}"
-LOCAL_FILE="desuarchive_mlp_full.ndjson"
-ATTEMPT_REPAIR=0
+REPO="${REPO:-firlin123/desu-mlp}"
+local_file="desuarchive_mlp_full.ndjson"
+attempt_repair=0
 
 # ==============================
 # Argument Parsing
@@ -16,7 +16,7 @@ ATTEMPT_REPAIR=0
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -r|--attempt-repair)
-            ATTEMPT_REPAIR=1
+            attempt_repair=1
             shift
             ;;
         -*)
@@ -24,46 +24,46 @@ while [[ $# -gt 0 ]]; do
             exit 1
             ;;
         *)
-            LOCAL_FILE="$1"
+            local_file="$1"
             shift
             ;;
     esac
 done
 
-LOCAL_DIR="$(dirname "$LOCAL_FILE")"
-BASE="https://github.com/$REPO/releases/download"
-MANIFEST_URL="https://raw.githubusercontent.com/${REPO}/main/manifest.json"
+local_dir="$(dirname "$local_file")"
+base_url="https://github.com/$REPO/releases/download"
+manifest_url="https://raw.githubusercontent.com/${REPO}/main/manifest.json"
 
 # ==============================
 # Dependency Check
 # ==============================
-REQUIRED_CMDS=(curl jq parallel gzip dd stat tail)
+required_cmds=(curl jq parallel gzip dd stat tail)
 
-if [[ $ATTEMPT_REPAIR -eq 1 ]]; then
-    REQUIRED_CMDS+=(truncate)
+if [[ $attempt_repair -eq 1 ]]; then
+    required_cmds+=(truncate)
 fi
 
-MISSING=()
-for cmd in "${REQUIRED_CMDS[@]}"; do
+missing_cmds=()
+for cmd in "${required_cmds[@]}"; do
     if ! command -v "$cmd" >/dev/null 2>&1; then
-        MISSING+=("$cmd")
+        missing_cmds+=("$cmd")
     fi
 done
 
-if [ ${#MISSING[@]} -ne 0 ]; then
-    echo "Error: Missing required commands: ${MISSING[*]}" >&2
+if [ ${#missing_cmds[@]} -ne 0 ]; then
+    echo "Error: Missing required commands: ${missing_cmds[*]}" >&2
     exit 1
 fi
 
 # ==============================
 # Download Manifest
 # ==============================
-if ! MANIFEST="$(curl -fsSL "$MANIFEST_URL")"; then
-    echo "Failed to download manifest.json from ${MANIFEST_URL}" >&2
+if ! manifest_json="$(curl -fsSL "$manifest_url")"; then
+    echo "Failed to download manifest.json from ${manifest_url}" >&2
     exit 1
 fi
 
-if ! LAST_REMOTE="$(jq -r '.lastDownloaded' <<<"$MANIFEST" 2>/dev/null)"; then
+if ! last_remote_num="$(jq -r '.lastDownloaded' <<<"$manifest_json" 2>/dev/null)"; then
     echo "Downloaded manifest.json is invalid." >&2
     exit 1
 fi
@@ -71,39 +71,39 @@ fi
 # ==============================
 # Check Local Archive State
 # ==============================
-LAST_LOCAL=0
-if [[ -f "$LOCAL_FILE" ]]; then
-    if ! LAST_LOCAL_JSON="$(tail -n 1 "$LOCAL_FILE" 2>/dev/null)"; then
+last_local_num=0
+if [[ -f "$local_file" ]]; then
+    if ! last_local_json="$(tail -n 1 "$local_file" 2>/dev/null)"; then
         echo "Failed to read local NDJSON file." >&2
         exit 1
     fi
-    if ! LAST_LOCAL="$(jq -r '.num' <<<"$LAST_LOCAL_JSON" 2>/dev/null)"; then
-        if [[ $ATTEMPT_REPAIR -eq 0 ]]; then
+    if ! last_local_num="$(jq -r '.num' <<<"$last_local_json" 2>/dev/null)"; then
+        if [[ $attempt_repair -eq 0 ]]; then
             echo "Failed to parse local NDJSON file. If the process was interrupted, consider using the --attempt-repair (-r) to remove the last corrupted line." >&2
             exit 1
         fi
         echo "Attempting to repair local NDJSON file by removing the last line..." >&2
-        LAST_LINE_LEN=$(wc -c < <(echo -n "$LAST_LOCAL_JSON"))
-        FILE_SIZE=$(stat -c%s "$LOCAL_FILE")
-        TRUNC_SIZE=$(( FILE_SIZE - LAST_LINE_LEN ))
-        if (( TRUNC_SIZE < 0 )); then
+        last_line_len=$(wc -c < <(echo -n "$last_local_json"))
+        file_size=$(stat -c%s "$local_file")
+        trunc_size=$(( file_size - last_line_len ))
+        if (( trunc_size < 0 )); then
             echo "Error: Cannot repair file; it may be too small or empty." >&2
             exit 1
         fi
-        echo "Truncating file to $TRUNC_SIZE bytes..." >&2
-        truncate --size=$TRUNC_SIZE "$LOCAL_FILE"
+        echo "Truncating file to $trunc_size bytes..." >&2
+        truncate --size=$trunc_size "$local_file"
         exit 0
     fi
 fi
 
 # Define update range
-UD_START=$((LAST_LOCAL + 1))
-UD_END="$LAST_REMOTE"
+update_start_num=$((last_local_num + 1))
+update_end_num="$last_remote_num"
 
 # ==============================
 # Check for No Updates
 # ==============================
-if [[ $UD_START -gt $UD_END ]]; then
+if [[ $update_start_num -gt $update_end_num ]]; then
     echo "Local archive is already up to date. No updates needed." >&2
     exit 0
 fi
@@ -111,84 +111,84 @@ fi
 # ==============================
 # Parse Names and URLs from Manifest
 # ==============================
-readarray -t NAMES < <(jq -r '((.yearly | map(.name)) + .monthly + .daily)[]' <<<"$MANIFEST" 2>/dev/null)
-readarray -t LINKS < <(jq -r --arg base "$BASE" '((.yearly | map(.url)) + [(.monthly + .daily)[] | "\($base)/\(.)/\(.).ndjson.gz"])[]' <<<"$MANIFEST" 2>/dev/null)
+readarray -t all_names < <(jq -r '((.yearly | map(.name)) + .monthly + .daily)[]' <<<"$manifest_json" 2>/dev/null)
+readarray -t all_links < <(jq -r --arg base "$base_url" '((.yearly | map(.url)) + [(.monthly + .daily)[] | "\($base)/\(.)/\(.).ndjson.xz"])[]' <<<"$manifest_json" 2>/dev/null)
 
 # Arrays for temporary download and extract tracking
-NAMES_TD=()
-LINKS_TD=()
-STARTS_TD=()
-ENDS_TD=()
-PATHS_TD=()
-GZ_PATHS_TD=()
+queue_names=()
+queue_links=()
+queue_starts=()
+queue_ends=()
+queue_paths=()
+queue_xz_paths=()
 
 # Ensure temp files get cleaned up on exit
-trap 'rm -f "${GZ_PATHS_TD[@]}" "${PATHS_TD[@]}"' EXIT
+trap 'rm -f "${queue_xz_paths[@]}" "${queue_paths[@]}"' EXIT
 
 # ==============================
 # Validate Contiguity and Queue Needed Files
 # ==============================
-PREV_END=-1
-for i in "${!NAMES[@]}"; do
-    NAME="${NAMES[i]}"
-    LINK="${LINKS[i]}"
+prev_end=-1
+for i in "${!all_names[@]}"; do
+    chunk_name="${all_names[i]}"
+    chunk_link="${all_links[i]}"
 
     # Extract start/end post numbers from filenames
-    if [[ "$NAME" =~ _([0-9]+)_([0-9]+)$ ]]; then
-        START="${BASH_REMATCH[1]}"
-        END="${BASH_REMATCH[2]}"
+    if [[ "$chunk_name" =~ _([0-9]+)_([0-9]+)$ ]]; then
+        chunk_start="${BASH_REMATCH[1]}"
+        chunk_end="${BASH_REMATCH[2]}"
     else
-        echo "Error: Invalid entry name '$NAME'." >&2
+        echo "Error: Invalid entry name '$chunk_name'." >&2
         exit 1
     fi
 
     # Ensure no gaps between chunks
-    if [[ $PREV_END -ne -1 && $((PREV_END + 1)) -ne $START ]]; then
-        echo "Error: Gap detected between entries $PREV_END and $START." >&2
+    if [[ $prev_end -ne -1 && $((prev_end + 1)) -ne $chunk_start ]]; then
+        echo "Error: Gap detected between entries $prev_end and $chunk_start." >&2
         exit 1
     fi
-    PREV_END=$END
+    prev_end=$chunk_end
 
     # Include only newer chunks
-    if (( END >= UD_START )); then
-        NAMES_TD+=("$NAME")
-        LINKS_TD+=("$LINK")
-        STARTS_TD+=("$START")
-        ENDS_TD+=("$END")
-        GZ_PATHS_TD+=("$(mktemp "${LOCAL_DIR}/$NAME.ndjson.gz.tmp.XXXXXX")")
-        PATHS_TD+=("$(mktemp "${LOCAL_DIR}/$NAME.ndjson.tmp.XXXXXX")")
+    if (( chunk_end >= update_start_num )); then
+        queue_names+=("$chunk_name")
+        queue_links+=("$chunk_link")
+        queue_starts+=("$chunk_start")
+        queue_ends+=("$chunk_end")
+        queue_xz_paths+=("$(mktemp "${local_dir}/$chunk_name.ndjson.xz.tmp.XXXXXX")")
+        queue_paths+=("$(mktemp "${local_dir}/$chunk_name.ndjson.tmp.XXXXXX")")
     fi
 done
 
 # ==============================
 # Sequential Downloading
 # ==============================
-for i in "${!NAMES_TD[@]}"; do
-    NAME="${NAMES_TD[i]}"
-    LINK="${LINKS_TD[i]}"
-    GZ_PATH="${GZ_PATHS_TD[i]}"
+for i in "${!queue_names[@]}"; do
+    chunk_name="${queue_names[i]}"
+    chunk_link="${queue_links[i]}"
+    xz_path="${queue_xz_paths[i]}"
 
-    echo "Downloading $NAME from $LINK..."
-    if ! curl -fL "$LINK" --retry 10 --retry-delay 60 --retry-all-errors -o "$GZ_PATH" 2>&1; then
-        echo "Failed to download $NAME from $LINK." >&2
+    echo "Downloading $chunk_name from $chunk_link..."
+    if ! curl -fL "$chunk_link" --retry 10 --retry-delay 60 --retry-all-errors -o "$xz_path" 2>&1; then
+        echo "Failed to download $chunk_name from $chunk_link." >&2
         exit 1
     fi
-    echo "Done downloading $NAME."
+    echo "Done downloading $chunk_name."
 done
 
 # ==============================
 # Parallel Decompression
 # ==============================
-CORES=$(nproc || echo 4)
-if parallel -j "$CORES" --halt now,fail=1 --ungroup --no-notice --plain '
+cores=$(nproc || echo 4)
+if parallel -j "$cores" --halt now,fail=1 --ungroup --no-notice --plain '
     echo "Decompressing "{1}"..."
-    if ! gzip -dc {2} > {3} 2>/dev/null; then
+    if ! xz -dc {2} > {3} 2>/dev/null; then
         echo "Failed to decompress "{1}"."
         exit 1
     fi
     echo "Done decompressing "{1}"."
     rm -f {2}
-' ::: "${NAMES_TD[@]}" :::+ "${GZ_PATHS_TD[@]}" :::+ "${PATHS_TD[@]}" >&2 2>/dev/null; then
+' ::: "${queue_names[@]}" :::+ "${queue_xz_paths[@]}" :::+ "${queue_paths[@]}" >&2 2>/dev/null; then
     echo "All decompressions completed successfully." >&2
 else
     echo "One or more decompressions failed." >&2
@@ -198,134 +198,134 @@ fi
 # ==============================
 # Partial Trim (If Local Mid-Chunk)
 # ==============================
-if [[ "${STARTS_TD[0]}" -ne "$UD_START" ]]; then
-    REMOTE_NAME="${NAMES_TD[0]}"
-    REMOTE_START="${STARTS_TD[0]}"
-    REMOTE_END="${ENDS_TD[0]}"
-    REMOTE_PATH="${PATHS_TD[0]}"
+if [[ "${queue_starts[0]}" -ne "$update_start_num" ]]; then
+    remote_name="${queue_names[0]}"
+    remote_start="${queue_starts[0]}"
+    remote_end="${queue_ends[0]}"
+    remote_path="${queue_paths[0]}"
 
-    echo "Trimming ${REMOTE_NAME} to start from post ${UD_START}..." >&2
+    echo "Trimming ${remote_name} to start from post ${update_start_num}..." >&2
 
     # Adjust metadata
-    REMOTE_SUFFIX="_${REMOTE_START}_${REMOTE_END}"
-    NEW_SUFFIX="_${UD_START}_${ENDS_TD[0]}"
-    NEW_NAME="${REMOTE_NAME%$REMOTE_SUFFIX}$NEW_SUFFIX"
-    NEW_START="$UD_START"
-    NEW_END="${REMOTE_END}"
-    NEW_PATH="$(mktemp "${LOCAL_DIR}/$NEW_NAME.ndjson.tmp.XXXXXX")"
-    PATHS_TD+=("$NEW_PATH")
+    remote_suffix="_${remote_start}_${remote_end}"
+    new_suffix="_${update_start_num}_${queue_ends[0]}"
+    new_name="${remote_name%$remote_suffix}$new_suffix"
+    new_start="$update_start_num"
+    new_end="${remote_end}"
+    new_path="$(mktemp "${local_dir}/$new_name.ndjson.tmp.XXXXXX")"
+    queue_paths+=("$new_path")
 
     # Binary-search setup
-    MAX_SEARCH=1048576
-    BUF_SIZE=65536
-    SEPARATOR=$'\n'
+    max_search_bytes=1048576
+    buf_size=65536
+    separator=$'\n'
     LC_ALL=C
-    REMOTE_SIZE=$(stat -c%s "$REMOTE_PATH")
-    LOW=0
-    HIGH=$REMOTE_SIZE
-    FOUND_OBJ_START=-1
-    FOUND_OBJ_END=-1
+    remote_size=$(stat -c%s "$remote_path")
+    low=0
+    high=$remote_size
+    found_obj_start=-1
+    found_obj_end=-1
 
-    # Locate byte offset where post.num == UD_START
-    while [[ $LOW -le $HIGH ]]; do
-        MID=$(( (LOW + HIGH) / 2 ))
-        BYTES_READ=0
-        LINE_START=-1
-        LINE_END=-1
-        READ_POS=$MID
+    # Locate byte offset where post.num == update_start_num
+    while [[ $low -le $high ]]; do
+        mid=$(( (low + high) / 2 ))
+        bytes_read=0
+        line_start=-1
+        line_end=-1
+        read_pos=$mid
 
         # Search backward for start of line
-        while (( READ_POS > 0 && LINE_START == -1 )); do
-            if (( READ_POS < BUF_SIZE )); then
-                READ_START=0
+        while (( read_pos > 0 && line_start == -1 )); do
+            if (( read_pos < buf_size )); then
+                read_start=0
             else
-                READ_START=$(( READ_POS - BUF_SIZE ))
+                read_start=$(( read_pos - buf_size ))
             fi
-            TO_READ=$(( READ_POS - READ_START ))
-            CHUNK="$(dd if="$REMOTE_PATH" bs=64K iflag=skip_bytes,count_bytes skip=$READ_START count=$TO_READ 2>/dev/null)"
-            CHUNK_SIZE=${#CHUNK}
-            BYTES_READ=$(( BYTES_READ + CHUNK_SIZE ))
-            if (( BYTES_READ > MAX_SEARCH )); then
+            to_read=$(( read_pos - read_start ))
+            chunk="$(dd if="$remote_path" bs=64K iflag=skip_bytes,count_bytes skip=$read_start count=$to_read 2>/dev/null)"
+            chunk_size=${#chunk}
+            bytes_read=$(( bytes_read + chunk_size ))
+            if (( bytes_read > max_search_bytes )); then
                 echo "Error: Reached maximum search limit without finding line start." >&2
                 exit 1
             fi
-            REMAINING_CHUNK="${CHUNK%$SEPARATOR*}"
-            if [[ "$REMAINING_CHUNK" != "$CHUNK" ]]; then
-                LINE_START=$(( READ_START + ${#REMAINING_CHUNK} + 1 ))
+            remaining_chunk="${chunk%$separator*}"
+            if [[ "$remaining_chunk" != "$chunk" ]]; then
+                line_start=$(( read_start + ${#remaining_chunk} + 1 ))
                 break
             fi
-            READ_POS=$READ_START
+            read_pos=$read_start
         done
-        (( LINE_START == -1 )) && LINE_START=0
+        (( line_start == -1 )) && line_start=0
 
         # Search forward for end of line
-        READ_POS=$MID
-        while (( READ_POS < REMOTE_SIZE && LINE_END == -1 )); do
-            TO_READ_MAX=$(( REMOTE_SIZE - READ_POS ))
-            TO_READ=$BUF_SIZE
-            (( TO_READ > TO_READ_MAX )) && TO_READ=$TO_READ_MAX
+        read_pos=$mid
+        while (( read_pos < remote_size && line_end == -1 )); do
+            to_read_max=$(( remote_size - read_pos ))
+            to_read=$buf_size
+            (( to_read > to_read_max )) && to_read=$to_read_max
 
-            CHUNK="$(dd if="$REMOTE_PATH" bs=64K iflag=skip_bytes,count_bytes skip=$READ_POS count=$TO_READ 2>/dev/null)"
-            CHUNK_SIZE=${#CHUNK}
-            BYTES_READ=$(( BYTES_READ + CHUNK_SIZE ))
-            if (( BYTES_READ > MAX_SEARCH )); then
+            chunk="$(dd if="$remote_path" bs=64K iflag=skip_bytes,count_bytes skip=$read_pos count=$to_read 2>/dev/null)"
+            chunk_size=${#chunk}
+            bytes_read=$(( bytes_read + chunk_size ))
+            if (( bytes_read > max_search_bytes )); then
                 echo "Error: Reached maximum search limit without finding line end." >&2
                 exit 1
             fi
-            REMAINING_CHUNK="${CHUNK#*$SEPARATOR}"
-            if [[ "$REMAINING_CHUNK" != "$CHUNK" ]]; then
-                LINE_END=$(( READ_POS + CHUNK_SIZE - ${#REMAINING_CHUNK} - 1 ))
+            remaining_chunk="${chunk#*$separator}"
+            if [[ "$remaining_chunk" != "$chunk" ]]; then
+                line_end=$(( read_pos + chunk_size - ${#remaining_chunk} - 1 ))
                 break
             fi
-            READ_POS=$(( READ_POS + BUF_SIZE ))
+            read_pos=$(( read_pos + buf_size ))
         done
-        (( LINE_END == -1 )) && LINE_END=$REMOTE_SIZE
+        (( line_end == -1 )) && line_end=$remote_size
 
-        if (( LINE_START >= LINE_END )); then
+        if (( line_start >= line_end )); then
             echo "Error: Failed to determine line boundaries during binary search." >&2
             exit 1
         fi
 
-        LINE_BYTES=$(( LINE_END - LINE_START ))
-        if (( LINE_BYTES >= MAX_SEARCH )); then
+        line_bytes=$(( line_end - line_start ))
+        if (( line_bytes >= max_search_bytes )); then
             echo "Error: Line size exceeds maximum search limit." >&2
             exit 1
         fi
-        LINE_JSON="$(dd if="$REMOTE_PATH" bs="$LINE_BYTES"B iflag=skip_bytes skip=$LINE_START count=1 2>/dev/null)"
-        if ! LINE_NUM=$(jq -r '.num' <<<"$LINE_JSON" 2>/dev/null); then
+        line_json="$(dd if="$remote_path" bs="$line_bytes"B iflag=skip_bytes skip=$line_start count=1 2>/dev/null)"
+        if ! line_num=$(jq -r '.num' <<<"$line_json" 2>/dev/null); then
             echo "Error: Failed to parse post JSON during binary search." >&2
             exit 1
         fi
 
-        if (( LINE_NUM < UD_START )); then
-            # echo "[DEBUG] $LINE_NUM < $UD_START" >&2
-            LOW=$(( LINE_END + 1 ))
-        elif (( LINE_NUM > UD_START )); then
-            # echo "[DEBUG] $LINE_NUM > $UD_START" >&2
-            HIGH=$(( LINE_START - 1 ))
+        if (( line_num < update_start_num )); then
+            # echo "[DEBUG] $line_num < $update_start_num" >&2
+            low=$(( line_end + 1 ))
+        elif (( line_num > update_start_num )); then
+            # echo "[DEBUG] $line_num > $update_start_num" >&2
+            high=$(( line_start - 1 ))
         else
-            # echo "[DEBUG] $LINE_NUM == $UD_START" >&2
-            FOUND_OBJ_START=$LINE_START
-            FOUND_OBJ_END=$LINE_END
+            # echo "[DEBUG] $line_num == $update_start_num" >&2
+            found_obj_start=$line_start
+            found_obj_end=$line_end
             break
         fi
     done
     unset LC_ALL
 
-    if (( FOUND_OBJ_START == -1 || FOUND_OBJ_END == -1 )); then
-        echo "Error: Failed to locate post ${UD_START} in remote file." >&2
+    if (( found_obj_start == -1 || found_obj_end == -1 )); then
+        echo "Error: Failed to locate post ${update_start_num} in remote file." >&2
         exit 1
     fi
 
-    echo "Overwriting ${REMOTE_NAME} to start from post ${UD_START} at byte offset ${FOUND_OBJ_START}..." >&2
-    dd if="$REMOTE_PATH" bs=16M iflag=skip_bytes skip=$FOUND_OBJ_START of="$NEW_PATH" 2>/dev/null
+    echo "Overwriting ${remote_name} to start from post ${update_start_num} at byte offset ${found_obj_start}..." >&2
+    dd if="$remote_path" bs=16M iflag=skip_bytes skip=$found_obj_start of="$new_path" 2>/dev/null
 
-    rm -f "$REMOTE_PATH"
-    unset 'PATHS_TD[-1]'
-    NAMES_TD[0]="$NEW_NAME"
-    STARTS_TD[0]="$NEW_START"
-    ENDS_TD[0]="$NEW_END"
-    PATHS_TD[0]="$NEW_PATH"
+    rm -f "$remote_path"
+    unset 'queue_paths[-1]'
+    queue_names[0]="$new_name"
+    queue_starts[0]="$new_start"
+    queue_ends[0]="$new_end"
+    queue_paths[0]="$new_path"
 
     echo "Trim complete." >&2
 fi
@@ -333,14 +333,14 @@ fi
 # ==============================
 # Append Updates to Local Archive
 # ==============================
-for i in "${!NAMES_TD[@]}"; do
-    REMOTE_NAME="${NAMES_TD[i]}"
-    REMOTE_START="${STARTS_TD[i]}"
-    REMOTE_END="${ENDS_TD[i]}"
-    REMOTE_PATH="${PATHS_TD[i]}"
-    echo "Appending posts ${REMOTE_START}–${REMOTE_END} from ${REMOTE_NAME}..." >&2
-    cat "$REMOTE_PATH" >> "$LOCAL_FILE"
-    rm -f "$REMOTE_PATH"
+for i in "${!queue_names[@]}"; do
+    remote_name="${queue_names[i]}"
+    remote_start="${queue_starts[i]}"
+    remote_end="${queue_ends[i]}"
+    remote_path="${queue_paths[i]}"
+    echo "Appending posts ${remote_start}–${remote_end} from ${remote_name}..." >&2
+    cat "$remote_path" >> "$local_file"
+    rm -f "$remote_path"
 done
 
-echo "Updated posts from ${UD_START} to ${UD_END} appended to ${LOCAL_FILE}." >&2
+echo "Updated posts from ${update_start_num} to ${update_end_num} appended to ${local_file}." >&2
