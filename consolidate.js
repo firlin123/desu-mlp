@@ -512,6 +512,7 @@ function consolidateYearly() {
      * @property {number} heinessenCount
      * @property {number} b4kCount
      * @property {number} archivedMoeCount
+     * @property {number} yukiLaCount
      * @property {number} fourArchiveCount
      * @property {number} missingCount
      */
@@ -531,7 +532,8 @@ function consolidateYearly() {
     if (!currStats ||
         typeof currStats.desuarchiveCount !== 'number' || typeof currStats.heinessenCount !== 'number' ||
         typeof currStats.b4kCount !== 'number' || typeof currStats.archivedMoeCount !== 'number' ||
-        typeof currStats.fourArchiveCount !== 'number' || typeof currStats.missingCount !== 'number') {
+        typeof currStats.yukiLaCount !== 'number' || typeof currStats.fourArchiveCount !== 'number' ||
+        typeof currStats.missingCount !== 'number') {
         console.warn('WARN: Current yearly stats in manifest are invalid. Resetting to null.');
         currStats = null;
     }
@@ -539,7 +541,8 @@ function consolidateYearly() {
     if (!newStatsDelta ||
         typeof newStatsDelta.desuarchiveCount !== 'number' || typeof newStatsDelta.heinessenCount !== 'number' ||
         typeof newStatsDelta.b4kCount !== 'number' || typeof newStatsDelta.archivedMoeCount !== 'number' ||
-        typeof newStatsDelta.fourArchiveCount !== 'number' || typeof newStatsDelta.missingCount !== 'number') {
+        typeof newStatsDelta.yukiLaCount !== 'number' || typeof newStatsDelta.fourArchiveCount !== 'number' ||
+        typeof newStatsDelta.missingCount !== 'number') {
         console.warn('WARN: New yearly stats delta from reCheck are invalid. Skipping stats update.');
         newStatsDelta = null;
     }
@@ -552,6 +555,7 @@ function consolidateYearly() {
             heinessenCount: currStats.heinessenCount + newStatsDelta.heinessenCount,
             b4kCount: currStats.b4kCount + newStatsDelta.b4kCount,
             archivedMoeCount: currStats.archivedMoeCount + newStatsDelta.archivedMoeCount,
+            yukiLaCount: currStats.yukiLaCount + newStatsDelta.yukiLaCount,
             fourArchiveCount: currStats.fourArchiveCount + newStatsDelta.fourArchiveCount,
             missingCount: currStats.missingCount + newStatsDelta.missingCount,
         };
@@ -566,6 +570,7 @@ function consolidateYearly() {
                     case 'heinessenCount': return String(newStats.heinessenCount);
                     case 'b4kCount': return String(newStats.b4kCount);
                     case 'archivedMoeCount': return String(newStats.archivedMoeCount);
+                    case 'yukiLaCount': return String(newStats.yukiLaCount);
                     case 'fourArchiveCount': return String(newStats.fourArchiveCount);
                     case 'missingCount': return String(newStats.missingCount);
                     case 'currentMonth': return [

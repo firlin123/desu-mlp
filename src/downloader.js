@@ -13,6 +13,7 @@ const { closeCDPFetchers } = require("./cdpFetch");
  * @property {number} heinessenCount
  * @property {number} b4kCount
  * @property {number} archivedMoeCount
+ * @property {number} yukiLaCount
  * @property {number} fourArchiveCount
  * @property {number} missingCount
  */
@@ -39,6 +40,7 @@ const DEFAULT_MANIFEST = {
         heinessenCount: 0,
         b4kCount: 0,
         archivedMoeCount: 0,
+        yukiLaCount: 0,
         fourArchiveCount: 0,
         missingCount: 0
     }
@@ -101,6 +103,10 @@ async function getManifest() {
     if (typeof data.lastYearlyStats.archivedMoeCount !== 'number') {
         console.warn(`manifest.lastYearlyStats.archivedMoeCount is invalid. Resetting to 0.`);
         data.lastYearlyStats.archivedMoeCount = 0;
+    }
+    if (typeof data.lastYearlyStats.yukiLaCount !== 'number') {
+        console.warn(`manifest.lastYearlyStats.yukiLaCount is invalid. Resetting to 0.`);
+        data.lastYearlyStats.yukiLaCount = 0;
     }
     if (typeof data.lastYearlyStats.fourArchiveCount !== 'number') {
         console.warn(`manifest.lastYearlyStats.fourArchiveCount is invalid. Resetting to 0.`);

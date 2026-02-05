@@ -239,6 +239,7 @@ async function main() {
         heinessenCount: 0,
         b4kCount: 0,
         archivedMoeCount: 0,
+        yukiLaCount: 0,
         fourArchiveCount: 0,
         missingCount: 0
     };
@@ -503,6 +504,9 @@ async function main() {
             case 'archived.moe':
                 stats.archivedMoeCount++;
                 break;
+            // case 'yuki.la':
+            //     stats.yukiLaCount++;
+            //     break;
             // case '4archive.org':
             //     stats.fourArchiveCount++;
             //     break;
