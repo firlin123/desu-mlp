@@ -7,6 +7,11 @@ on:
         description: "Name of the release to recheck"
         required: true
         type: string
+      extreme_compression:
+        description: "Enable extreme compression (true/false)"
+        required: false
+        default: "false"
+        type: string
 
 permissions:
   contents: write
@@ -26,4 +31,5 @@ jobs:
       - name: Run recheck script
         env:
           GH_TOKEN: ${{ github.token }}
+          EXTREME_COMPRESSION: ${{ github.event.inputs.extreme_compression }}
         run: ./recheckRelease.sh "${{ github.event.inputs.release_name }}"
