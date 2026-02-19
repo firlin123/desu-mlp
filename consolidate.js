@@ -24,7 +24,7 @@ const IA_EMAIL = process.env.IA_EMAIL || '';
 const IA_PASSWORD = process.env.IA_PASSWORD || '';
 
 // Base subjects for Internet Archive uploads
-const BASE_SUBJECTS = process.env.BASE_SUBJECTS || '4chan;mlp;my little pony;brony;imageboard;dataset;json;ndjson;desuarchive;desuarchive.org;archive.heinessen.com;arch.b4k.dev;archived.moe';
+const BASE_SUBJECTS = process.env.BASE_SUBJECTS || '4chan;mlp;my little pony;brony;imageboard;dataset;json;ndjson;desuarchive;desuarchive.org;archive.heinessen.com;arch.b4k.dev;archived.moe;yuki.la;4archive.org';
 
 // 2012-02-17 05:39:50 UTC is the date of the first /mlp/ post
 const BASE_YEAR = parseInt(process.env.BASE_YEAR || '2012', 10);
