@@ -6,8 +6,9 @@ const { readFileSync, writeFileSync, existsSync, renameSync, cpSync } = require(
 const execWEnv = /** @type {any} */ (
     /** @type {(cmd: string, options: import('child_process').ExecSyncOptions) => string} */
     ((cmd, options) => {
-        options = options || {};
-        return execSync(cmd, Object.assign({}, options, { env: process.env }));
+        options = Object.assign({}, options || {});
+        options.env = Object.assign({}, process.env, options.env || {});
+        return execSync(cmd, options);
     })
 );
 
