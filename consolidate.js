@@ -414,9 +414,10 @@ function consolidateYearly() {
         return true;
     }
 
-    // Allow archives 2 days to settle before the reCheck
+    // Allow archives 2.5 days to settle before the reCheck
     const graceEnd = new Date(endDate);
     graceEnd.setUTCDate(graceEnd.getUTCDate() + 2);
+    graceEnd.setUTCHours(graceEnd.getUTCHours() + 12);
     const currTS = new Date();
 
     if (currTS.getTime() < graceEnd.getTime()) {
