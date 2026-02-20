@@ -5,20 +5,7 @@
     "20260219053934_daily_43047726_43050385",
     "20260220053849_daily_43050386_43052737"
   ],
-  "monthly": [
-    "20250317053625_monthly_41951100_42033348",
-    "20250415020922_monthly_42033349_42141988",
-    "20250517053917_monthly_42141989_42199180",
-    "20250617053651_monthly_42199181_42276777",
-    "20250717053914_monthly_42276778_42366080",
-    "20250817053938_monthly_42366081_42471152",
-    "20250917053905_monthly_42471153_42578872",
-    "20251017053807_monthly_42578873_42684336",
-    "20251117053859_monthly_42684337_42805950",
-    "20251217053916_monthly_42805951_42881779",
-    "20260117053859_monthly_42881780_42960348",
-    "20260217053905_monthly_42960349_43044793"
-  ],
+  "monthly": [],
   "yearly": [
     {
       "name": "20130217053950_yearly_1_8355614",
@@ -71,15 +58,19 @@
     {
       "name": "20250217053930_yearly_40833447_41951099",
       "url": "https://archive.org/download/desu-mlp/20250217053930_yearly_40833447_41951099.ndjson.xz"
+    },
+    {
+      "name": "20260217053906_yearly_41951100_43044793",
+      "url": "https://archive.org/download/desu-mlp/20260217053906_yearly_41951100_43044793.ndjson.xz"
     }
   ],
   "lastYearlyStats": {
-    "desuarchiveCount": 41549520,
+    "desuarchiveCount": 42641771,
     "heinessenCount": 53860,
-    "b4kCount": 48695,
-    "archivedMoeCount": 16318,
+    "b4kCount": 49582,
+    "archivedMoeCount": 16547,
     "yukiLaCount": 7,
     "fourArchiveCount": 2,
-    "missingCount": 282697
+    "missingCount": 283024
   }
 }
