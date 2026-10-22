@@ -432,7 +432,7 @@ async function fetchThreadSearch(threadNum, site, useChunkedFallback) {
  * @returns {Promise<MinimalFFThread | { error: string }>} The thread data.
  */
 async function fetchThreadInner(threadNum, site) {
-    const allowResponses = [500];
+    const allowResponses = [500, 502];
     if (site === 'archived.moe') {
         allowResponses.push(403);
     }
@@ -442,7 +442,7 @@ async function fetchThreadInner(threadNum, site) {
         return { error: 'Captcha required.' };
     }
     // Thread too big, use search (with chunked fallback) instead
-    if (resp.status === 500) {
+    if (resp.status === 500 || resp.status === 502) {
         return await fetchThreadSearch(threadNum, site, true);
     }
     /** @type {MinimalFFThread | { error: string }} */
